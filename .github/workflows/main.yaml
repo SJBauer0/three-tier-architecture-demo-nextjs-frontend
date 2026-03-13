@@ -1,0 +1,99 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow
+name: Deploy Frontend to EKS
+
+on:
+  push:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+# Define environment variables for AWS and deployment settings
+env:
+  AWS_REGION: "us-east-1"
+  ECR_REPOSITORY: "lab-2-sjb-frontend-ecr-repo"
+  EKS_CLUSTER_NAME: "lab-2-sjb--main-eks-cluster"
+  DEPLOYMENT_NAME: "lab-2-sjb--frontend"
+  CONTAINER_NAME: "frontend-container"
+
+# Set permissions for GitHub Actions to interact with AWS and the repository
+permissions:
+  id-token: "write"
+  contents: "read"
+
+# Define the jobs for linting and deployment
+jobs:
+  # Linting job to ensure code quality before deployment
+  lint:
+    name: "Lint Frontend Code"
+    runs-on: "ubuntu-latest"
+    steps:
+      # Checkout the code from the repository
+      - name: "Checkout Code"
+        uses: "actions/checkout@v4"
+
+      # Install pnpm to manage dependencies and run the linter
+      - name: "Install pnpm"
+        uses: "pnpm/action-setup@v4"
+        with:
+          version: "9"
+
+      # Set up Node.js environment with caching for pnpm dependencies
+      - name: "Setup Node.js"
+        uses: "actions/setup-node@v4"
+        with:
+          node-version: "22"
+          cache: "pnpm"
+
+      # Install project dependencies using pnpm with a frozen lockfile to ensure consistency
+      - name: "Install Dependencies"
+        run: "pnpm install --frozen-lockfile"
+
+      # Run the linter to check for code quality issues
+      - name: "Run Linter"
+        run: "pnpm run lint"
+
+  # Deployment job that builds the Docker image, pushes it to ECR, and updates the EKS deployment
+  deploy:
+    name: "Build, Push, and Update EKS"
+    needs: "lint"
+    runs-on: "ubuntu-latest"
+    steps:
+      # Checkout the code from the repository
+      - name: "Checkout Code"
+        uses: "actions/checkout@v4"
+
+      # Configure AWS credentials using a role that GitHub Actions can assume
+      - name: "Configure AWS Credentials"
+        uses: "aws-actions/configure-aws-credentials@v4"
+        with:
+          role-to-assume: "arn:aws:iam::987470856504:role/GitHub_Actions"
+          aws-region: "${{ env.AWS_REGION }}"
+
+      # Log in to Amazon ECR to allow pushing the Docker image
+      - name: "Login to Amazon ECR"
+        id: "login-ecr"
+        uses: "aws-actions/amazon-ecr-login@v2"
+
+      # Build the Docker image, tag it with the GitHub SHA, and push it to ECR
+      - name: "Build, Tag, and Push Docker Image"
+        id: "build-image"
+        env:
+          ECR_REGISTRY: "${{ steps.login-ecr.outputs.registry }}"
+          IMAGE_TAG: "${{ github.sha }}"
+        run: |
+          docker build -t "$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" .
+          docker push "$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG"
+          echo "image=$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      # Update the kubeconfig to allow kubectl to interact with the EKS cluster
+      - name: "Update EKS Kubeconfig"
+        run: |
+          aws eks update-kubeconfig --name "${{ env.EKS_CLUSTER_NAME }}" --region "${{ env.AWS_REGION }}"
+
+      # Set the new image in the Kubernetes deployment and wait for the rollout to complete
+      - name: "Deploy New Image to EKS Nodes"
+        env:
+          IMAGE: "${{ steps.build-image.outputs.image }}"
+        run: |
+          kubectl set image "deployment/${{ env.DEPLOYMENT_NAME }}" "${{ env.CONTAINER_NAME }}=$IMAGE"
+          kubectl rollout status "deployment/${{ env.DEPLOYMENT_NAME }}"
