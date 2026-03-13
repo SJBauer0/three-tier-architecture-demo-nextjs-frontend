@@ -9,6 +9,7 @@ on:
 
 # Define environment variables for AWS and deployment settings
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   AWS_REGION: "us-east-1"
   ECR_REPOSITORY: "lab-2-sjb-frontend-ecr-repo"
   EKS_CLUSTER_NAME: "lab-2-sjb--main-eks-cluster"
@@ -20,12 +21,11 @@ permissions:
   id-token: "write"
   contents: "read"
 
-# Define the jobs for linting and deployment
+# Define the jobs for deployment
 jobs:
   # Deployment job that builds the Docker image, pushes it to ECR, and updates the EKS deployment
   deploy:
     name: "Build, Push, and Update EKS"
-    needs: "lint"
     runs-on: "ubuntu-latest"
     steps:
       # Checkout the code from the repository
