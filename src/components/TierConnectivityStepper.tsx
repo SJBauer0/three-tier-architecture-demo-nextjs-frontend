@@ -319,7 +319,7 @@ export default function TierConnectivityStepper({
                 {/* ---------- header ---------- */}
                 <Stack direction="row" spacing={1} alignItems="center">
                     <Hub color="primary" />
-                    <Typography variant="h6">Tier Connectivity</Typography>
+                    <Typography variant="h6">Tier Connectivity Test 5</Typography>
                 </Stack>
                 <Typography variant="body2" color="text.secondary">
                     Real-time connectivity status across the three-tier architecture.
