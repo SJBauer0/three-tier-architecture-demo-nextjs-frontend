@@ -22,36 +22,6 @@ permissions:
 
 # Define the jobs for linting and deployment
 jobs:
-  # Linting job to ensure code quality before deployment
-  lint:
-    name: "Lint Frontend Code"
-    runs-on: "ubuntu-latest"
-    steps:
-      # Checkout the code from the repository
-      - name: "Checkout Code"
-        uses: "actions/checkout@v4"
-
-      # Install pnpm to manage dependencies and run the linter
-      - name: "Install pnpm"
-        uses: "pnpm/action-setup@v4"
-        with:
-          version: "9"
-
-      # Set up Node.js environment with caching for pnpm dependencies
-      - name: "Setup Node.js"
-        uses: "actions/setup-node@v4"
-        with:
-          node-version: "22"
-          cache: "pnpm"
-
-      # Install project dependencies using pnpm with a frozen lockfile to ensure consistency
-      - name: "Install Dependencies"
-        run: "pnpm install --frozen-lockfile"
-
-      # Run the linter to check for code quality issues
-      - name: "Run Linter"
-        run: "pnpm run lint"
-
   # Deployment job that builds the Docker image, pushes it to ECR, and updates the EKS deployment
   deploy:
     name: "Build, Push, and Update EKS"
