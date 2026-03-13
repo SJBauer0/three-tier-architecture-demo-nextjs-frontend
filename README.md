@@ -36,13 +36,13 @@ pnpm dev
 
 ## Environment variables
 
-| Variable | Required | Default | Description |
-| --- | --- | --- | --- |
-| `INTERNAL_API_BASE_URL` | **Yes** | `http://localhost:3001` | Base URL of the backend service, resolved **server-side only**. In a container environment, use the internal service address (e.g. `http://backend:3001`). |
-| `PORT` | No | `3000` | Port the server listens on |
-| `POD_NAME` | No | — | Identifier of the current instance/pod. Displayed in the UI for observability. |
-| `POD_IP` | No | — | IP address of the current instance/pod. Displayed in the UI for observability. |
-| `NODE_NAME` | No | — | Hostname of the underlying node/host. Displayed in the UI for observability. |
+| Variable                  | Required      | Default                   | Description                                                                                                                                                       |
+| ------------------------- | ------------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `INTERNAL_API_BASE_URL` | **Yes** | `http://localhost:3001` | Base URL of the backend service, resolved**server-side only**. In a container environment, use the internal service address (e.g. `http://backend:3001`). |
+| `PORT`                  | No            | `3000`                  | Port the server listens on                                                                                                                                        |
+| `POD_NAME`              | No            | —                        | Identifier of the current instance/pod. Displayed in the UI for observability.                                                                                    |
+| `POD_IP`                | No            | —                        | IP address of the current instance/pod. Displayed in the UI for observability.                                                                                    |
+| `NODE_NAME`             | No            | —                        | Hostname of the underlying node/host. Displayed in the UI for observability.                                                                                      |
 
 > `POD_NAME`, `POD_IP`, and `NODE_NAME` are optional and purely cosmetic — the application works without them. They are designed to be injected by the infrastructure (e.g. Kubernetes Downward API or EC2 instance metadata) to demonstrate load balancing across replicas.
 
