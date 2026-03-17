@@ -1,3 +1,16 @@
+# IAM Permissions & Policies needed for the GitHub Actions workflow:
+# For GitHub_Actions Role:
+# - AmazonEKSClusterPolicy
+# - AWSAppRunnerServicePolicyForECRAccess
+# - ECRPushPermissions (Custom Policy): See below for the exact JSON Policy
+
+# Cluster Access policy for IAM Github_Actions Role:
+# Configure IAM access entry
+# - IAM principal: GitHub_Actions (the role created for GitHub Actions to assume)
+# - Type: Standard
+# - Access Policies:
+#   - AmazonEKSEditPolicy (Allows GitHub Actions to update the EKS deployment with the new Docker image)
+
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow
 name: Deploy Frontend to EKS
 
@@ -30,26 +43,33 @@ jobs:
     steps:
       # Checkout the code from the repository
       - name: "Checkout Code"
+        # This action checks out the repository code so that it can be used in subsequent steps for building the Docker image
         uses: "actions/checkout@v4"
 
       # Configure AWS credentials using a role that GitHub Actions can assume
       - name: "Configure AWS Credentials"
         uses: "aws-actions/configure-aws-credentials@v4"
         with:
+          # This role has been manually created in the AWS account to allow GitHub Actions to assume it for deployment purposes
           role-to-assume: "arn:aws:iam::987470856504:role/GitHub_Actions"
           aws-region: "${{ env.AWS_REGION }}"
 
       # Log in to Amazon ECR to allow pushing the Docker image
       - name: "Login to Amazon ECR"
         id: "login-ecr"
+        # Configure the AWS credentials to authenticate with Amazon ECR
         uses: "aws-actions/amazon-ecr-login@v2"
 
       # Build the Docker image, tag it with the GitHub SHA, and push it to ECR
       - name: "Build, Tag, and Push Docker Image"
         id: "build-image"
         env:
+          # Set the ECR registry URL and image tag for the Docker image
           ECR_REGISTRY: "${{ steps.login-ecr.outputs.registry }}"
           IMAGE_TAG: "${{ github.sha }}"
+          # The ECR repository name is defined in the environment variables and will be used to tag the Docker image appropriately
+          # The Docker image is built using the Dockerfile in the repository, tagged with the ECR registry and repository name, and then pushed to Amazon ECR. 
+          # The image URL is also set as an output for use in subsequent steps.
         run: |
           docker build -t "$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG" .
           docker push "$ECR_REGISTRY/${{ env.ECR_REPOSITORY }}:$IMAGE_TAG"
@@ -63,7 +83,45 @@ jobs:
       # Set the new image in the Kubernetes deployment and wait for the rollout to complete
       - name: "Deploy New Image to EKS Nodes"
         env:
+          # The IMAGE variable is set to the output from the previous step where the Docker image was built and pushed to ECR.
           IMAGE: "${{ steps.build-image.outputs.image }}"
         run: |
           kubectl set image "deployment/${{ env.DEPLOYMENT_NAME }}" "${{ env.CONTAINER_NAME }}=$IMAGE"
           kubectl rollout status "deployment/${{ env.DEPLOYMENT_NAME }}"
+
+
+# -------------------------------------------------
+#        ECRPushPermissions (Custom Policy)
+# -------------------------------------------------
+
+# {
+#	"Version": "2012-10-17",
+#	"Statement": [
+#		{
+#			"Sid": "GetAuthorizationToken",			"Effect": "Allow",
+#			"Action": "ecr:GetAuthorizationToken",
+#			"Resource": "*"
+#		},
+#		{
+#			"Sid": "AllowPushPull",
+#			"Effect": "Allow",
+#			"Action": [
+#				"ecr:BatchGetImage",
+#				"ecr:BatchCheckLayerAvailability",
+#				"ecr:CompleteLayerUpload",
+#				"ecr:GetDownloadUrlForLayer",
+#				"ecr:InitiateLayerUpload",
+#				"ecr:PutImage",
+#				"ecr:UploadLayerPart"
+#			],
+#			"Resource": "arn:aws:ecr:us-east-1:987470856504:repository/lab-2-sjb-frontend-ecr-repo"
+#		},
+#		{
+#			"Sid": "AllowEKSDescribe",
+#			"Effect": "Allow",
+#			"Action": "eks:DescribeCluster",
+#			"Resource": "arn:aws:eks:us-east-1:987470856504:cluster/lab-2-sjb--main-eks-cluster"
+#		}
+#	]
+#}
+#
